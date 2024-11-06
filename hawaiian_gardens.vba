@@ -3,9 +3,12 @@ Sub CreateNewSortedSheet()
     Dim newWs As Worksheet
     Dim lastRow As Long
     Dim currentCategory As String
-    Dim lengthSum As Double
-    Dim areaSum As Double
+    Dim lengthSumRange As String
+    Dim areaSumRange As String
     Dim i As Long
+    Dim startRow As Long
+    Dim categoryStartRow As Long
+    Dim rowCount As Long
     
     ' Reference the active sheet
     Set ws = ActiveSheet
@@ -51,8 +54,8 @@ Sub CreateNewSortedSheet()
     newWs.Range("M1").Value = "Insp. Date"
     newWs.Range("N1").Value = "PCI"
     newWs.Range("O1").Value = "PCI Load %"
-    newWs.Range("P1").Value = "PCI Climate %"
-    newWs.Range("Q1").Value = "PCI Other %"
+    newWs.Range("Q1").Value = "PCI Climate %"
+    newWs.Range("P1").Value = "PCI Other %"
     
     ' Copy data with new column mappings (adjusted for blank row)
     ws.Range("A2:A" & lastRow).Copy newWs.Range("A3") ' Street ID
@@ -87,46 +90,89 @@ Sub CreateNewSortedSheet()
     
     ' Initialize variables for category tracking and summing
     lastRow = newWs.Cells(newWs.Rows.Count, "A").End(xlUp).Row
-    lengthSum = 0
-    areaSum = 0
     currentCategory = newWs.Cells(3, 7).Value
+    startRow = 3
+    categoryStartRow = startRow
+    rowCount = 0
     
-    ' Add first category to first blank row
-    newWs.Range("B2").Value = currentCategory
+    ' Create analysis sheet
+    Dim analysisWs As Worksheet
+    Set analysisWs = ThisWorkbook.Worksheets.Add(After:=newWs)
+    analysisWs.Name = "Category Analysis"
+    
+    ' Set up analysis headers
+    analysisWs.Range("A1").Value = "Category"
+    analysisWs.Range("B1").Value = "Start Row"
+    analysisWs.Range("C1").Value = "End Row"
+    analysisWs.Range("D1").Value = "Row Count"
+    analysisWs.Range("E1").Value = "Total Length (mi)"
+    analysisWs.Range("F1").Value = "Total Area"
+    
+    Dim analysisRow As Long
+    analysisRow = 2
     
     ' Loop through rows to sum and insert summary rows for each category
-    For i = 3 To lastRow + 1
-        ' Check if we're at a category change or the end of data
-        If i > lastRow Or (i <= lastRow And newWs.Cells(i, 7).Value <> currentCategory) Then
-            ' Insert summary row when category changes or end of data
-            newWs.Rows(i).Insert
-            newWs.Cells(i, 8).Value = lengthSum / 5280 ' Convert length to miles
-            newWs.Cells(i, 10).Value = areaSum
+    For i = 3 To lastRow
+        rowCount = rowCount + 1
+        
+        ' Check if we're at a category change OR at the last row
+        If i = lastRow Or (newWs.Cells(i + 1, 7).Value <> currentCategory And newWs.Cells(i + 1, 7).Value <> "") Then
+            ' Add to analysis sheet
+            analysisWs.Cells(analysisRow, 1).Value = currentCategory
+            analysisWs.Cells(analysisRow, 2).Value = categoryStartRow
+            analysisWs.Cells(analysisRow, 3).Value = i
+            analysisWs.Cells(analysisRow, 4).Value = rowCount
+            analysisWs.Cells(analysisRow, 5).Formula = "=SUM(H" & categoryStartRow & ":H" & i & ")/5280" ' Convert to miles
+            analysisWs.Cells(analysisRow, 6).Formula = "=SUM(J" & categoryStartRow & ":J" & i & ")"
+            analysisRow = analysisRow + 1
+            
+            ' Insert summary row with formulas
+            newWs.Rows(i + 1).Insert
+            newWs.Cells(i + 1, 8).Formula = "=SUM(H" & categoryStartRow & ":H" & i & ")/5280" ' Length in miles
+            newWs.Cells(i + 1, 10).Formula = "=SUM(J" & categoryStartRow & ":J" & i & ")"       ' Total area
+            
+            ' Output category details to Immediate window
+            Debug.Print "Category:", currentCategory, "Starts at row:", categoryStartRow, "Ends at row:", i
             
             ' Insert blank row after summary if not at the end
-            If i <= lastRow Then
-                newWs.Rows(i + 1).Insert
-                newWs.Range("B" & (i + 1)).Value = newWs.Cells(i + 2, 7).Value
-            End If
-            
-            ' Reset sums and update current category
-            lengthSum = 0
-            areaSum = 0
-            If i + 2 <= lastRow Then
-                currentCategory = newWs.Cells(i + 2, 7).Value
+            If i < lastRow Then
+                newWs.Rows(i + 2).Insert
+                newWs.Range("B" & (i + 2)).Value = newWs.Cells(i + 3, 7).Value
+                
+                ' Reset for the next category
+                rowCount = 0
+                currentCategory = newWs.Cells(i + 3, 7).Value
+                categoryStartRow = i + 3
                 lastRow = lastRow + 2
-                i = i + 1
+                i = i + 2
             End If
-        End If
-        
-        ' Accumulate Length and Area sums
-        If i <= lastRow Then
-            If IsNumeric(newWs.Cells(i, 8).Value) Then lengthSum = lengthSum + CDbl(newWs.Cells(i, 8).Value)
-            If IsNumeric(newWs.Cells(i, 10).Value) Then areaSum = areaSum + CDbl(newWs.Cells(i, 10).Value)
         End If
     Next i
     
-    ' Formatting applied at the end
+    ' Check if a third category exists and add a final summary row with formulas if needed
+    If analysisRow >= 4 Then
+        Debug.Print "Third category starts 3 rows after previous and continues from row:", analysisWs.Cells(analysisRow - 1, 3).Value + 3, "to row:", lastRow
+        
+        ' Insert summary for third category with formulas
+        newWs.Rows(lastRow + 1).Insert
+        newWs.Cells(lastRow + 1, 8).Formula = "=SUM(H" & categoryStartRow & ":H" & lastRow & ")/5280" ' Length in miles
+        newWs.Cells(lastRow + 1, 10).Formula = "=SUM(J" & categoryStartRow & ":J" & lastRow & ")"       ' Total area
+    End If
+    
+    ' Format analysis sheet
+    With analysisWs.Range("A1:F1")
+        .Font.Bold = True
+        .Font.Color = vbWhite
+        .Font.Name = "Aptos Narrow"
+        .Interior.Color = RGB(21, 61, 100)
+        .WrapText = True
+        .VerticalAlignment = xlCenter
+        .RowHeight = 41
+    End With
+    
+    analysisWs.Columns("A:F").AutoFit
+    
+    ' Formatting applied at the end for PCI Report
     With newWs.Range("A1:Q1")
         .Font.Bold = True
         .Font.Color = vbWhite
@@ -148,6 +194,9 @@ Sub CreateNewSortedSheet()
 
     newWs.Columns("A:Q").AutoFit
     newWs.Activate
+    
+    ' Output the number of rows to the Immediate window
+    Debug.Print "Number of rows in PCI Report:", lastRow - 2
 End Sub
 
 
