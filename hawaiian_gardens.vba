@@ -144,7 +144,6 @@ Sub CreateNewSortedSheet()
             With newWs.Range("A" & (i + 1) & ",D" & (i + 1) & ":Q" & (i + 1))
                 .HorizontalAlignment = xlCenter
             End With
-            newWs.Range("B" & (i + 1) & ":C" & (i + 1)).Merge
             newWs.Cells(i + 1, 8).Formula = "=TEXT(ROUND(SUM(H" & categoryStartRow & ":H" & i & ")/5280,1),""0.0"")"
             newWs.Cells(i + 1, 10).Formula = "=ROUND(SUM(J" & categoryStartRow & ":J" & i & "),1)"
             
@@ -182,7 +181,6 @@ Sub CreateNewSortedSheet()
         With newWs.Range("A" & (lastRow + 1) & ",D" & (lastRow + 1) & ":Q" & (lastRow + 1))
             .HorizontalAlignment = xlCenter
         End With
-        newWs.Range("B" & (lastRow + 1) & ":C" & (lastRow + 1)).Merge
         newWs.Cells(lastRow + 1, 8).Formula = "=TEXT(ROUND(SUM(H" & categoryStartRow & ":H" & lastRow & ")/5280,1),""0.0"")"
         newWs.Cells(lastRow + 1, 10).Formula = "=ROUND(SUM(J" & categoryStartRow & ":J" & lastRow & "),1)"
         
