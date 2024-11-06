@@ -54,26 +54,6 @@ Sub CreateNewSortedSheet()
     newWs.Range("P1").Value = "PCI Climate %"
     newWs.Range("Q1").Value = "PCI Other %"
     
-    ' Format headers
-    With newWs.Range("A1:Q1")
-        .Font.Bold = True
-        .Font.Color = vbWhite
-        .Font.Name = "Aptos Narrow"
-        .Interior.Color = RGB(21, 61, 100)
-        .WrapText = True
-        .VerticalAlignment = xlCenter
-        .RowHeight = 41
-    End With
-    
-    ' Insert and format blank row after headers
-    newWs.Rows("2:2").Insert
-    With newWs.Rows("2:2")
-        .RowHeight = 25
-        .Interior.Color = vbWhite
-        .Font.Color = vbBlack
-    End With
-    newWs.Range("B2:C2").Merge
-    
     ' Copy data with new column mappings (adjusted for blank row)
     ws.Range("A2:A" & lastRow).Copy newWs.Range("A3") ' Street ID
     ws.Range("B2:B" & lastRow).Copy newWs.Range("B3") ' Section ID
@@ -105,9 +85,6 @@ Sub CreateNewSortedSheet()
     ws.Range("AI2:AI" & lastRow).Copy newWs.Range("P3") ' PCI Climate %
     ws.Range("AJ2:AJ" & lastRow).Copy newWs.Range("Q3") ' PCI Other %
     
-    ' Set all data text to black
-    newWs.Range("A3:Q" & (lastRow + 1)).Font.Color = vbBlack
-    
     ' Initialize variables for category tracking and summing
     lastRow = newWs.Cells(newWs.Rows.Count, "A").End(xlUp).Row
     lengthSum = 0
@@ -123,34 +100,13 @@ Sub CreateNewSortedSheet()
         If i > lastRow Or (i <= lastRow And newWs.Cells(i, 7).Value <> currentCategory) Then
             ' Insert summary row when category changes or end of data
             newWs.Rows(i).Insert
+            newWs.Cells(i, 8).Value = lengthSum / 5280 ' Convert length to miles
+            newWs.Cells(i, 10).Value = areaSum
             
-            ' Format only the summary row cells that contain values
-            With newWs.Rows(i)
-                newWs.Cells(i, 8).Value = lengthSum / 5280 ' Convert length to miles
-                newWs.Cells(i, 8).NumberFormat = "0.00"
-                newWs.Cells(i, 8).Font.Bold = True
-                
-                newWs.Cells(i, 10).Value = areaSum
-                newWs.Cells(i, 10).NumberFormat = "#,##0"
-                newWs.Cells(i, 10).Font.Bold = True
-                
-                .Borders.LineStyle = xlContinuous
-            End With
-            
-            ' Insert and format blank row after summary (only if not at the very end)
+            ' Insert blank row after summary if not at the end
             If i <= lastRow Then
                 newWs.Rows(i + 1).Insert
-                With newWs.Rows(i + 1)
-                    .RowHeight = 25
-                    .Interior.Color = vbWhite
-                    .Font.Color = vbBlack
-                End With
-                newWs.Range("B" & (i + 1) & ":C" & (i + 1)).Merge
-                
-                ' Get next category (if not at end) and add to blank row
-                If i + 2 <= lastRow Then
-                    newWs.Range("B" & (i + 1)).Value = newWs.Cells(i + 2, 7).Value
-                End If
+                newWs.Range("B" & (i + 1)).Value = newWs.Cells(i + 2, 7).Value
             End If
             
             ' Reset sums and update current category
@@ -158,19 +114,34 @@ Sub CreateNewSortedSheet()
             areaSum = 0
             If i + 2 <= lastRow Then
                 currentCategory = newWs.Cells(i + 2, 7).Value
-                lastRow = lastRow + 2 ' Account for summary and blank rows
-                i = i + 1 ' Skip the blank row in next iteration
+                lastRow = lastRow + 2
+                i = i + 1
             End If
         End If
         
-        ' Accumulate Length and Area sums for the current category
+        ' Accumulate Length and Area sums
         If i <= lastRow Then
             If IsNumeric(newWs.Cells(i, 8).Value) Then lengthSum = lengthSum + CDbl(newWs.Cells(i, 8).Value)
             If IsNumeric(newWs.Cells(i, 10).Value) Then areaSum = areaSum + CDbl(newWs.Cells(i, 10).Value)
         End If
     Next i
     
-    ' Final formatting
+    ' Formatting applied at the end
+    With newWs.Range("A1:Q1")
+        .Font.Bold = True
+        .Font.Color = vbWhite
+        .Font.Name = "Aptos Narrow"
+        .Interior.Color = RGB(21, 61, 100)
+        .WrapText = True
+        .VerticalAlignment = xlCenter
+        .RowHeight = 41
+    End With
+
+    With newWs.Range("A3:Q" & lastRow)
+        .Font.Color = vbBlack
+    End With
+
+    ' Set all borders
     With newWs.Range("A1:Q" & lastRow)
         .Borders.LineStyle = xlContinuous
     End With
@@ -178,4 +149,5 @@ Sub CreateNewSortedSheet()
     newWs.Columns("A:Q").AutoFit
     newWs.Activate
 End Sub
+
 
