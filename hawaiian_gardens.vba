@@ -77,6 +77,9 @@ Sub CreateNewSortedSheet()
         End If
     Next cell
     
+    ' Copy row 3 column G value to row 2 column B
+    newWs.Range("B2").Value = newWs.Range("G3").Value
+    
     ws.Range("J2:J" & lastRow).Copy newWs.Range("H3") ' Length
     ws.Range("K2:K" & lastRow).Copy newWs.Range("I3") ' Width
     ws.Range("L2:L" & lastRow).Copy newWs.Range("J3") ' Area
@@ -111,6 +114,12 @@ Sub CreateNewSortedSheet()
     Dim analysisRow As Long
     analysisRow = 2
     
+    ' Make row 2 bold and merge B and C cells
+    With newWs.Range("A2:Q2")
+        .Font.Bold = True
+    End With
+    newWs.Range("B2:C2").Merge
+    
     ' Loop through rows to sum and insert summary rows for each category
     For i = 3 To lastRow
         rowCount = rowCount + 1
@@ -128,8 +137,12 @@ Sub CreateNewSortedSheet()
             
             ' Insert summary row with formulas
             newWs.Rows(i + 1).Insert
+            With newWs.Range("A" & (i + 1) & ":Q" & (i + 1))
+                .Font.Bold = True
+            End With
+            newWs.Range("B" & (i + 1) & ":C" & (i + 1)).Merge
             newWs.Cells(i + 1, 8).Formula = "=SUM(H" & categoryStartRow & ":H" & i & ")/5280" ' Length in miles
-            newWs.Cells(i + 1, 10).Formula = "=SUM(J" & categoryStartRow & ":J" & i & ")"       ' Total area
+            newWs.Cells(i + 1, 10).Formula = "=SUM(J" & categoryStartRow & ":J" & i & ")"     ' Total area
             
             ' Output category details to Immediate window
             Debug.Print "Category:", currentCategory, "Starts at row:", categoryStartRow, "Ends at row:", i
@@ -138,6 +151,7 @@ Sub CreateNewSortedSheet()
             If i < lastRow Then
                 newWs.Rows(i + 2).Insert
                 newWs.Range("B" & (i + 2)).Value = newWs.Cells(i + 3, 7).Value
+                newWs.Range("B" & (i + 2) & ":C" & (i + 2)).Merge    ' Merge B and C cells for blank row
                 
                 ' Reset for the next category
                 rowCount = 0
@@ -155,8 +169,16 @@ Sub CreateNewSortedSheet()
         
         ' Insert summary for third category with formulas
         newWs.Rows(lastRow + 1).Insert
+        With newWs.Range("A" & (lastRow + 1) & ":Q" & (lastRow + 1))
+            .Font.Bold = True
+        End With
+        newWs.Range("B" & (lastRow + 1) & ":C" & (lastRow + 1)).Merge
         newWs.Cells(lastRow + 1, 8).Formula = "=SUM(H" & categoryStartRow & ":H" & lastRow & ")/5280" ' Length in miles
-        newWs.Cells(lastRow + 1, 10).Formula = "=SUM(J" & categoryStartRow & ":J" & lastRow & ")"       ' Total area
+        newWs.Cells(lastRow + 1, 10).Formula = "=SUM(J" & categoryStartRow & ":J" & lastRow & ")"     ' Total area
+        
+        ' Add final blank row and merge B:C
+        newWs.Rows(lastRow + 2).Insert
+        newWs.Range("B" & (lastRow + 2) & ":C" & (lastRow + 2)).Merge
     End If
     
     ' Format analysis sheet
@@ -182,21 +204,26 @@ Sub CreateNewSortedSheet()
         .VerticalAlignment = xlCenter
         .RowHeight = 41
     End With
-
+    
     With newWs.Range("A3:Q" & lastRow)
         .Font.Color = vbBlack
     End With
-
+    
     ' Set all borders
     With newWs.Range("A1:Q" & lastRow)
         .Borders.LineStyle = xlContinuous
     End With
-
+    
     newWs.Columns("A:Q").AutoFit
     newWs.Activate
     
     ' Output the number of rows to the Immediate window
     Debug.Print "Number of rows in PCI Report:", lastRow - 2
+    
+    On Error Resume Next
+    Application.DisplayAlerts = False
+    ThisWorkbook.Sheets("Category Analysis").Delete
+    Application.DisplayAlerts = True
+    On Error GoTo 0
 End Sub
-
 
