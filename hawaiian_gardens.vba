@@ -254,7 +254,7 @@ ws.Range("J2:J" & lastRow).Copy newWs.Range("H3") ' Length
         
         ' Check if row has any content
         For Each cell In rng
-            If Not isEmpty(cell) Then
+            If Not IsEmpty(cell) Then
                 rowHasContent = True
                 Exit For
             End If
@@ -332,7 +332,7 @@ Sub MoveOtherSectionInNewSheet(ws As Worksheet)
     ' Process each row to identify sections
     For i = 1 To lastRow
         ' Check if this is a section header (empty column A, value in B, empty in C)
-        If isEmpty(ws.Cells(i, 1)) And Not isEmpty(ws.Cells(i, 2)) And isEmpty(ws.Cells(i, 3)) Then
+        If IsEmpty(ws.Cells(i, 1)) And Not IsEmpty(ws.Cells(i, 2)) And IsEmpty(ws.Cells(i, 3)) Then
             ' If we were tracking a section, add it to our collection
             If isInSection Then
                 ' Store section info as concatenated string: "name|startRow|endRow"
@@ -402,7 +402,7 @@ Sub MoveOtherSectionInNewSheet(ws As Worksheet)
             
             ' Check if row is empty
             For Each cell In rng
-                If Not isEmpty(cell) Then
+                If Not IsEmpty(cell) Then
                     isRowEmpty = False
                     Exit For
                 End If
@@ -421,7 +421,7 @@ Sub MoveOtherSectionInNewSheet(ws As Worksheet)
             
             ' Check if row has any content
             For Each cell In rng
-                If Not isEmpty(cell) Then
+                If Not IsEmpty(cell) Then
                     rowHasContent = True
                     Exit For
                 End If
@@ -465,7 +465,7 @@ Sub CountRowsWithTextAndStyle()
     Set ws = ActiveSheet
     
     ' Find the last row in the worksheet
-    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1  ' Add 1 to include extra row
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).row + 1  ' Add 1 to include extra row
     
     ' Initialize counter and last content row tracker
     totalRows = 0
@@ -523,3 +523,4 @@ Sub CountRowsWithTextAndStyle()
     MsgBox "Styling applied to " & rowsWithContent.Count & " rows (including extra row)." & vbNewLine & _
            "Last styled row: " & lastContentRow, vbInformation, "Styling Complete"
 End Sub
+
