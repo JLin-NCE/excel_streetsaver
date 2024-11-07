@@ -524,3 +524,4 @@ Sub CountRowsWithTextAndStyle()
            "Last styled row: " & lastContentRow, vbInformation, "Styling Complete"
 End Sub
 
+
