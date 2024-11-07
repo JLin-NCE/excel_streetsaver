@@ -1,4 +1,4 @@
-Sub CreateNewSortedSheet()
+Sub ProcessAndFormatSheet()
     Dim ws As Worksheet
     Dim newWs As Worksheet
     Dim lastRow As Long
@@ -94,7 +94,7 @@ Sub CreateNewSortedSheet()
         .HorizontalAlignment = xlLeft
     End With
 
-ws.Range("J2:J" & lastRow).Copy newWs.Range("H3") ' Length
+    ws.Range("J2:J" & lastRow).Copy newWs.Range("H3") ' Length
     ws.Range("K2:K" & lastRow).Copy newWs.Range("I3") ' Width
     ws.Range("L2:L" & lastRow).Copy newWs.Range("J3") ' Area
     ws.Range("Q2:Q" & lastRow).Copy newWs.Range("K3") ' Surface Type
@@ -175,7 +175,8 @@ ws.Range("J2:J" & lastRow).Copy newWs.Range("H3") ' Length
             End If
         End If
     Next i
-' Check if a third category exists and add a final summary row with formulas if needed
+    
+    ' Check if a third category exists and add a final summary row with formulas if needed
     If analysisRow >= 4 Then
         Debug.Print "Third category starts 3 rows after previous and continues from row:", analysisWs.Cells(analysisRow - 1, 3).Value + 3, "to row:", lastRow
         
@@ -286,7 +287,8 @@ ws.Range("J2:J" & lastRow).Copy newWs.Range("H3") ' Length
             End With
         End If
     Next row
-' Special formatting for summary rows (rows with formulas)
+    
+    ' Special formatting for summary rows (rows with formulas)
     For row = 2 To lastRow
         Set cell = newWs.Range("H" & row)
         If Left(cell.Formula, 1) = "=" Then
@@ -299,40 +301,29 @@ ws.Range("J2:J" & lastRow).Copy newWs.Range("H3") ' Length
     
     ' Autofit columns
     newWs.Columns("A:Q").AutoFit
-    newWs.Activate
-    
-    ' Delete analysis sheet
+' Delete analysis sheet
     On Error Resume Next
     Application.DisplayAlerts = False
     ThisWorkbook.Sheets("Category Analysis").Delete
     Application.DisplayAlerts = True
     On Error GoTo 0
     
-    ' Now move the Other section
-    MoveOtherSectionInNewSheet newWs
-End Sub
-
-Sub MoveOtherSectionInNewSheet(ws As Worksheet)
+    ' Move the Other section
     ' Create collection to store sections
     Dim sections As Collection
     Set sections = New Collection
     
-    ' Variables for tracking current section
+    ' Variables for tracking sections
     Dim sectionName As String
     Dim sectionStart As Long
     Dim sectionEnd As Long
-    Dim i As Long
     Dim isInSection As Boolean
     isInSection = False
-    
-    ' Find the last row in the worksheet
-    Dim lastRow As Long
-    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).row
     
     ' Process each row to identify sections
     For i = 1 To lastRow
         ' Check if this is a section header (empty column A, value in B, empty in C)
-        If IsEmpty(ws.Cells(i, 1)) And Not IsEmpty(ws.Cells(i, 2)) And IsEmpty(ws.Cells(i, 3)) Then
+        If IsEmpty(newWs.Cells(i, 1)) And Not IsEmpty(newWs.Cells(i, 2)) And IsEmpty(newWs.Cells(i, 3)) Then
             ' If we were tracking a section, add it to our collection
             If isInSection Then
                 ' Store section info as concatenated string: "name|startRow|endRow"
@@ -340,7 +331,7 @@ Sub MoveOtherSectionInNewSheet(ws As Worksheet)
             End If
             
             ' Start new section
-            sectionName = ws.Cells(i, 2).Value
+            sectionName = newWs.Cells(i, 2).Value
             sectionStart = i + 1
             isInSection = True
         End If
@@ -374,30 +365,25 @@ Sub MoveOtherSectionInNewSheet(ws As Worksheet)
     ' If we found the Other section, move it
     If otherStartRow > 0 Then
         ' Copy the Other section including headers
-        Dim otherRange As Range
-        Set otherRange = ws.Range("A" & otherStartRow & ":Q" & otherEndRow)
+        Set rng = newWs.Range("A" & otherStartRow & ":Q" & otherEndRow)
         
         ' Store the data in an array
         Dim otherData As Variant
-        otherData = otherRange.Value
+        otherData = rng.Value
         
         ' Clear the original range
-        otherRange.Clear
+        rng.Clear
         
         ' Find the new bottom of the worksheet
         Dim newLastRow As Long
-        newLastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).row + 2  ' Add 2 for extra blank row
+        newLastRow = newWs.Cells(newWs.Rows.Count, "A").End(xlUp).row + 2  ' Add 2 for extra blank row
         
         ' Paste the Other section at the bottom
-        ws.Range("A" & newLastRow).Resize(UBound(otherData, 1), UBound(otherData, 2)) = otherData
+        newWs.Range("A" & newLastRow).Resize(UBound(otherData, 1), UBound(otherData, 2)) = otherData
         
         ' Delete blank rows in the original range
-        Dim rng As Range
-        Dim cell As Range
-        Dim isRowEmpty As Boolean
-        
         For i = otherEndRow To otherStartRow Step -1
-            Set rng = ws.Range("A" & i & ":Q" & i)
+            Set rng = newWs.Range("A" & i & ":Q" & i)
             isRowEmpty = True
             
             ' Check if row is empty
@@ -417,7 +403,7 @@ Sub MoveOtherSectionInNewSheet(ws As Worksheet)
         ' Apply borders only to rows with content in the moved section
         For i = newLastRow To newLastRow + UBound(otherData, 1) - 1
             rowHasContent = False
-            Set rng = ws.Range("A" & i & ":Q" & i)
+            Set rng = newWs.Range("A" & i & ":Q" & i)
             
             ' Check if row has any content
             For Each cell In rng
@@ -440,41 +426,24 @@ Sub MoveOtherSectionInNewSheet(ws As Worksheet)
         Next i
         
         ' Ensure proper text color in moved section
-        ws.Range("A" & newLastRow & ":Q" & (newLastRow + UBound(otherData, 1) - 1)).Font.Color = vbBlack
+        newWs.Range("A" & newLastRow & ":Q" & (newLastRow + UBound(otherData, 1) - 1)).Font.Color = vbBlack
     End If
     
-    ' Final formatting cleanup
-    ws.Activate
-    ws.Columns("A:Q").AutoFit
-    
-
-End Sub
-
-Sub CountRowsWithTextAndStyle()
-    Dim ws As Worksheet
-    Dim lastRow As Long
-    Dim rng As Range
-    Dim cell As Range
-    Dim rowHasContent As Boolean
-    Dim totalRows As Long
-    Dim lastContentRow As Long
+    ' Final count and style rows with content
+    lastRow = newWs.Cells(newWs.Rows.Count, "A").End(xlUp).row + 1  ' Add 1 to include extra row
     Dim rowsWithContent As Collection
     Set rowsWithContent = New Collection
     
-    ' Reference the active sheet
-    Set ws = ActiveSheet
-    
-    ' Find the last row in the worksheet
-    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).row + 1  ' Add 1 to include extra row
-    
     ' Initialize counter and last content row tracker
+    Dim totalRows As Long
+    Dim lastContentRow As Long
     totalRows = 0
     lastContentRow = 0
     
     ' First, collect all rows that have content
     For i = 2 To lastRow ' Start from 2 to skip title row
         rowHasContent = False
-        Set rng = ws.Range("A" & i & ":Q" & i)
+        Set rng = newWs.Range("A" & i & ":Q" & i)
         
         ' Check each cell in the row for content
         For Each cell In rng
@@ -498,7 +467,7 @@ Sub CountRowsWithTextAndStyle()
     
     ' Now apply styling to all content rows
     For Each rowNum In rowsWithContent
-        Set rng = ws.Range("A" & rowNum & ":Q" & rowNum)
+        Set rng = newWs.Range("A" & rowNum & ":Q" & rowNum)
         
         ' Clear any existing background
         rng.Interior.ColorIndex = xlNone
@@ -519,9 +488,11 @@ Sub CountRowsWithTextAndStyle()
         End If
     Next rowNum
     
+    ' Final cleanup and activation
+    newWs.Activate
+    newWs.Columns("A:Q").AutoFit
+    
     ' Display confirmation
-    MsgBox "Styling applied to " & rowsWithContent.Count & " rows (including extra row)." & vbNewLine & _
-           "Last styled row: " & lastContentRow, vbInformation, "Styling Complete"
+    MsgBox "Processing complete! " & rowsWithContent.Count & " rows styled (including extra row)." & vbNewLine & _
+           "Last styled row: " & lastContentRow, vbInformation, "Process Complete"
 End Sub
-
-
