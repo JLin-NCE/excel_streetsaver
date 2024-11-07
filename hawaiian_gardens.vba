@@ -450,94 +450,76 @@ Sub MoveOtherSectionInNewSheet(ws As Worksheet)
 
 End Sub
 
-Sub ApplyStyleToTextRows(ws As Worksheet)
-    Dim lastRow As Long, mergedLastRow As Long
-    Dim rng As Range, usedRange As Range
-    Dim row As Long, i As Long
+Sub CountRowsWithTextAndStyle()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim rng As Range
     Dim cell As Range
     Dim rowHasContent As Boolean
-    Dim contentDescription As String
-    Dim rowsWithContent() As String
-    Dim contentIndex As Long
-
-    ' Initialize index for rows with content
-    contentIndex = 0
-
-    ' Get the used range and find its last row
-    Set usedRange = ws.usedRange
-    lastRow = usedRange.Rows(usedRange.Rows.Count).row
-    Debug.Print "Used range last row: " & lastRow
+    Dim totalRows As Long
+    Dim lastContentRow As Long
+    Dim rowsWithContent As Collection
+    Set rowsWithContent = New Collection
     
-    ' Also check special last row method
-    Dim specialLastRow As Long
-    specialLastRow = ws.Cells.SpecialCells(xlCellTypeLastCell).row
-    Debug.Print "Special last cell row: " & specialLastRow
+    ' Reference the active sheet
+    Set ws = ActiveSheet
     
-    ' Check for last merged B:C cell
-    mergedLastRow = 1
-    For i = 1 To ws.usedRange.Rows.Count
-        If ws.Range("B" & i & ":C" & i).MergeCells Then
-            mergedLastRow = i
-            Debug.Print "Found merged cells B:C in row " & i
-        End If
-    Next i
-    Debug.Print "Last row with merged B:C cells: " & mergedLastRow
+    ' Find the last row in the worksheet
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row + 1  ' Add 1 to include extra row
     
-    ' Use the largest of all methods
-    If specialLastRow > lastRow Then lastRow = specialLastRow
-    If mergedLastRow > lastRow Then lastRow = mergedLastRow
+    ' Initialize counter and last content row tracker
+    totalRows = 0
+    lastContentRow = 0
     
-    Debug.Print String(50, "-")
-    Debug.Print "ROW CONTENT ANALYSIS:"
-    Debug.Print String(50, "-")
-    
-    ' Loop through each row
-    For row = 1 To lastRow
+    ' First, collect all rows that have content
+    For i = 2 To lastRow ' Start from 2 to skip title row
         rowHasContent = False
-        contentDescription = ""
-        Set rng = ws.Range("A" & row & ":R" & row)
+        Set rng = ws.Range("A" & i & ":Q" & i)
         
-        ' First check if it's a merged cell row
-        If ws.Range("B" & row & ":C" & row).MergeCells Then
-            rowHasContent = True
-            contentDescription = "Merged B:C cells, value: [" & ws.Range("B" & row).Text & "]"
-        End If
-        
-        ' Check each cell for content
+        ' Check each cell in the row for content
         For Each cell In rng
-            If Not isEmpty(cell) And Trim(CStr(cell.Text)) <> "" Then
+            If Not IsEmpty(cell) And Trim(CStr(cell.Text)) <> "" Then
                 rowHasContent = True
-                If contentDescription = "" Then
-                    contentDescription = "Text in column " & Split(cell.Address, "$")(1) & ": [" & cell.Text & "]"
-                End If
+                Exit For
             End If
         Next cell
         
-        ' Collect findings for rows with content
+        ' If row has content or it's the extra row after content, add to collection
         If rowHasContent Then
-            contentIndex = contentIndex + 1
-            ReDim Preserve rowsWithContent(1 To contentIndex)
-            rowsWithContent(contentIndex) = "Row " & Format(row, "000") & ": " & contentDescription
-            
-            ' Apply border styling
+            totalRows = totalRows + 1
+            lastContentRow = i
+            rowsWithContent.Add i
+        ElseIf i = lastContentRow + 1 Then
+            ' Add the extra row after the last content row
+            rowsWithContent.Add i
+            lastContentRow = i  ' Update lastContentRow to include this extra row
+        End If
+    Next i
+    
+    ' Now apply styling to all content rows
+    For Each rowNum In rowsWithContent
+        Set rng = ws.Range("A" & rowNum & ":Q" & rowNum)
+        
+        ' Clear any existing background
+        rng.Interior.ColorIndex = xlNone
+        
+        ' Apply borders
+        With rng.Borders
+            .LineStyle = xlContinuous
+            .Weight = xlThin
+            .ColorIndex = xlAutomatic
+        End With
+        
+        ' Special formatting for last row (which is now the extra row)
+        If CLng(rowNum) = lastContentRow Then
             With rng
-                .Borders(xlEdgeLeft).LineStyle = xlContinuous
-                .Borders(xlEdgeRight).LineStyle = xlContinuous
-                .Borders(xlEdgeTop).LineStyle = xlContinuous
-                .Borders(xlEdgeBottom).LineStyle = xlContinuous
-                .Borders(xlInsideVertical).LineStyle = xlContinuous
+                .Font.Bold = True
+                .HorizontalAlignment = xlCenter
             End With
         End If
-    Next row
-
-    ' Print only rows with content
-    Debug.Print String(50, "-")
-    Debug.Print "Rows with text content:"
-    For i = LBound(rowsWithContent) To UBound(rowsWithContent)
-        Debug.Print rowsWithContent(i)
-    Next i
-    Debug.Print String(50, "-")
-    Debug.Print "Analysis complete. Last row processed: " & lastRow
-    Debug.Print String(50, "-")
+    Next rowNum
+    
+    ' Display confirmation
+    MsgBox "Styling applied to " & rowsWithContent.Count & " rows (including extra row)." & vbNewLine & _
+           "Last styled row: " & lastContentRow, vbInformation, "Styling Complete"
 End Sub
-
