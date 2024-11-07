@@ -99,12 +99,86 @@ Sub ProcessAndFormatSheet()
     ws.Range("L2:L" & lastRow).Copy newWs.Range("J3") ' Area
     ws.Range("Q2:Q" & lastRow).Copy newWs.Range("K3") ' Surface Type
     ws.Range("X2:X" & lastRow).Copy newWs.Range("L3") ' Area ID
-    ws.Range("AD2:AD" & lastRow).Copy newWs.Range("M3") ' Insp. Date
+    ' For Column M (Inspection Date), copy and clean in one step
+Dim dateStr As String
+For i = 2 To lastRow
+    dateStr = ws.Cells(i, "AD").Value    ' Get value from source column AD
+    If InStr(dateStr, " ") > 0 Then
+        ' If there's a space, only take what's before it
+        newWs.Cells(i + 1, "M").Value = Trim(Left(dateStr, InStr(dateStr, " ") - 1))
+    Else
+        ' If no space, use the whole value
+        newWs.Cells(i + 1, "M").Value = dateStr
+    End If
+Next i
     ws.Range("AB2:AB" & lastRow).Copy newWs.Range("N3") ' PCI
-    ws.Range("AH2:AH" & lastRow).Copy newWs.Range("O3") ' PCI Load %
-    ws.Range("AI2:AI" & lastRow).Copy newWs.Range("P3") ' PCI Climate %
-    ws.Range("AJ2:AJ" & lastRow).Copy newWs.Range("Q3") ' PCI Other %
+' Copy and round PCI Load % (Column O)
+With newWs.Range("O3:O" & lastRow)
+    ws.Range("AH2:AH" & lastRow).Copy .Cells(1)
+    .Value = .Value
+    .NumberFormat = "0"
+End With
+
+' Copy and round PCI Climate % (Column P)
+With newWs.Range("P3:P" & lastRow)
+    ws.Range("AI2:AI" & lastRow).Copy .Cells(1)
+    .Value = .Value
+    .NumberFormat = "0"
+End With
+
+' Copy and round PCI Other % (Column Q)
+With newWs.Range("Q3:Q" & lastRow)
+    ws.Range("AJ2:AJ" & lastRow).Copy .Cells(1)
+    .Value = .Value
+    .NumberFormat = "0"
+End With
     
+    ' Clean Column C - Remove dash and everything after
+Dim lastDataRow As Long
+lastDataRow = newWs.Cells(newWs.Rows.Count, "A").End(xlUp).row
+
+For i = 3 To lastDataRow ' Start from row 3 since row 1 is header and row 2 is category
+    If Not IsEmpty(newWs.Cells(i, 3).Value) Then  ' Column C
+        Dim streetName As String
+        streetName = newWs.Cells(i, 3).Value
+        dashPos = InStr(streetName, "-")
+        If dashPos > 0 Then
+            newWs.Cells(i, 3).Value = Trim(Left(streetName, dashPos - 1))
+        End If
+    End If
+    
+    ' Clean Column K - Remove everything before dash and the dash
+    If Not IsEmpty(newWs.Cells(i, 11).Value) Then  ' Column K
+        Dim surfaceType As String
+        surfaceType = newWs.Cells(i, 11).Value
+        dashPos = InStr(surfaceType, "-")
+        If dashPos > 0 Then
+            newWs.Cells(i, 11).Value = Trim(Mid(surfaceType, dashPos + 1))
+        End If
+    End If
+    
+    ' Clean Column L - Remove everything before dash and the dash
+    If Not IsEmpty(newWs.Cells(i, 12).Value) Then  ' Column L
+        Dim areaID As String
+        areaID = newWs.Cells(i, 12).Value
+        dashPos = InStr(areaID, "-")
+        If dashPos > 0 Then
+            newWs.Cells(i, 12).Value = Trim(Mid(areaID, dashPos + 1))
+        End If
+    End If
+    
+    ' Clean Column M - Remove everything after first space
+    If Not IsEmpty(newWs.Cells(i, 13).Value) Then  ' Column M
+        Dim inspDate As String
+        inspDate = newWs.Cells(i, 13).Value
+        Dim spacePos As Long
+        spacePos = InStr(inspDate, " ")
+        If spacePos > 0 Then
+            newWs.Cells(i, 13).Value = Trim(Left(inspDate, spacePos - 1))
+        End If
+    End If
+Next i
+
     ' Initialize variables for category tracking and summing
     lastRow = newWs.Cells(newWs.Rows.Count, "A").End(xlUp).row
     currentCategory = newWs.Cells(3, 7).Value
@@ -151,6 +225,8 @@ Sub ProcessAndFormatSheet()
             With newWs.Range("A" & (i + 1) & ",D" & (i + 1) & ":Q" & (i + 1))
                 .HorizontalAlignment = xlCenter
             End With
+
+            ' Add raw formulas to summary row
             newWs.Cells(i + 1, 8).Formula = "=TEXT(ROUND(SUM(H" & categoryStartRow & ":H" & i & ")/5280,1),""0.0"")"
             newWs.Cells(i + 1, 10).Formula = "=ROUND(SUM(J" & categoryStartRow & ":J" & i & "),1)"
             
@@ -381,6 +457,22 @@ Sub ProcessAndFormatSheet()
         ' Paste the Other section at the bottom
         newWs.Range("A" & newLastRow).Resize(UBound(otherData, 1), UBound(otherData, 2)) = otherData
         
+        ' Round columns O, P, Q in the moved Other section
+With newWs.Range("O" & newLastRow & ":O" & (newLastRow + UBound(otherData, 1) - 1))
+    .Value = .Value
+    .NumberFormat = "0"
+End With
+
+With newWs.Range("P" & newLastRow & ":P" & (newLastRow + UBound(otherData, 1) - 1))
+    .Value = .Value
+    .NumberFormat = "0"
+End With
+
+With newWs.Range("Q" & newLastRow & ":Q" & (newLastRow + UBound(otherData, 1) - 1))
+    .Value = .Value
+    .NumberFormat = "0"
+End With
+
         ' Delete blank rows in the original range
         For i = otherEndRow To otherStartRow Step -1
             Set rng = newWs.Range("A" & i & ":Q" & i)
@@ -496,3 +588,10 @@ Sub ProcessAndFormatSheet()
     MsgBox "Processing complete! " & rowsWithContent.Count & " rows styled (including extra row)." & vbNewLine & _
            "Last styled row: " & lastContentRow, vbInformation, "Process Complete"
 End Sub
+
+
+
+
+
+
+
