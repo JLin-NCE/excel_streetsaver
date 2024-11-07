@@ -14,7 +14,7 @@ Sub CreateNewSortedSheet()
     Set ws = ActiveSheet
     
     ' Find the last row in the active sheet
-    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).row
     
     ' Sort the active sheet by Functional Class
     With ws.Sort
@@ -71,9 +71,9 @@ Sub CreateNewSortedSheet()
     For Each cell In ws.Range("I2:I" & lastRow)
         dashPos = InStr(cell.Value, "-")
         If dashPos > 0 Then
-            newWs.Cells(cell.Row + 1, 7).Value = Mid(cell.Value, dashPos + 1)
+            newWs.Cells(cell.row + 1, 7).Value = Mid(cell.Value, dashPos + 1)
         Else
-            newWs.Cells(cell.Row + 1, 7).Value = cell.Value
+            newWs.Cells(cell.row + 1, 7).Value = cell.Value
         End If
     Next cell
     
@@ -85,9 +85,16 @@ Sub CreateNewSortedSheet()
         .Font.Size = 14
         .RowHeight = 25
     End With
-    newWs.Range("B2:C2").Merge
     
-    ws.Range("J2:J" & lastRow).Copy newWs.Range("H3") ' Length
+    ' Ensure columns B and C are the same width before merging
+    newWs.Columns("B:C").ColumnWidth = newWs.Columns("B").ColumnWidth
+    ' Now merge the cells
+    With newWs.Range("B2:C2")
+        .MergeCells = True
+        .HorizontalAlignment = xlLeft
+    End With
+
+ws.Range("J2:J" & lastRow).Copy newWs.Range("H3") ' Length
     ws.Range("K2:K" & lastRow).Copy newWs.Range("I3") ' Width
     ws.Range("L2:L" & lastRow).Copy newWs.Range("J3") ' Area
     ws.Range("Q2:Q" & lastRow).Copy newWs.Range("K3") ' Surface Type
@@ -99,7 +106,7 @@ Sub CreateNewSortedSheet()
     ws.Range("AJ2:AJ" & lastRow).Copy newWs.Range("Q3") ' PCI Other %
     
     ' Initialize variables for category tracking and summing
-    lastRow = newWs.Cells(newWs.Rows.Count, "A").End(xlUp).Row
+    lastRow = newWs.Cells(newWs.Rows.Count, "A").End(xlUp).row
     currentCategory = newWs.Cells(3, 7).Value
     startRow = 3
     categoryStartRow = startRow
@@ -168,8 +175,7 @@ Sub CreateNewSortedSheet()
             End If
         End If
     Next i
-    
-    ' Check if a third category exists and add a final summary row with formulas if needed
+' Check if a third category exists and add a final summary row with formulas if needed
     If analysisRow >= 4 Then
         Debug.Print "Third category starts 3 rows after previous and continues from row:", analysisWs.Cells(analysisRow - 1, 3).Value + 3, "to row:", lastRow
         
@@ -208,7 +214,7 @@ Sub CreateNewSortedSheet()
     
     analysisWs.Columns("A:F").AutoFit
     
-    ' Formatting applied at the end for PCI Report
+    ' Updated styling for PCI Report
     With newWs.Range("A1:Q1")
         .Font.Bold = True
         .Font.Color = vbWhite
@@ -219,24 +225,79 @@ Sub CreateNewSortedSheet()
         .RowHeight = 41
     End With
 
-    With newWs.Range("A3:Q" & lastRow)
+    ' Clear interior color for all cells except header row
+    newWs.Range("A2:Q" & lastRow).Interior.ColorIndex = xlNone
+    
+    ' Make sure text is black for data rows
+    With newWs.Range("A2:Q" & lastRow)
         .Font.Color = vbBlack
     End With
 
-    ' Set borders for main range
-    With newWs.Range("A1:Q" & lastRow)
-        .Borders.LineStyle = xlContinuous
+    ' Apply borders only to rows with content
+    Dim rng As Range
+    Dim rowHasContent As Boolean
+    Dim row As Long
+    
+    ' Always apply borders to header row
+    With newWs.Range("A1:Q1")
+        .Borders(xlEdgeLeft).LineStyle = xlContinuous
+        .Borders(xlEdgeRight).LineStyle = xlContinuous
+        .Borders(xlEdgeTop).LineStyle = xlContinuous
+        .Borders(xlEdgeBottom).LineStyle = xlContinuous
+        .Borders(xlInsideVertical).LineStyle = xlContinuous
     End With
     
-    ' Special formatting for last row and the row after
-    With newWs.Range("A" & lastRow & ":Q" & lastRow)
-        .RowHeight = 25
-    End With
+    ' Check each row for content and apply borders accordingly
+    For row = 2 To lastRow
+        rowHasContent = False
+        Set rng = newWs.Range("A" & row & ":Q" & row)
+        
+        ' Check if row has any content
+        For Each cell In rng
+            If Not isEmpty(cell) Then
+                rowHasContent = True
+                Exit For
+            End If
+        Next cell
+        
+        ' Apply borders if row has content
+        If rowHasContent Then
+            With rng
+                .Borders(xlEdgeLeft).LineStyle = xlContinuous
+                .Borders(xlEdgeRight).LineStyle = xlContinuous
+                .Borders(xlEdgeTop).LineStyle = xlContinuous
+                .Borders(xlEdgeBottom).LineStyle = xlContinuous
+                .Borders(xlInsideVertical).LineStyle = xlContinuous
+            End With
+        End If
+    Next row
     
-    With newWs.Range("A" & (lastRow + 1) & ":Q" & (lastRow + 1))
-        .Borders.LineStyle = xlContinuous
-    End With
+    ' Special formatting for category title rows
+    Dim titleRow As Range
+    For row = 2 To lastRow
+        If newWs.Range("B" & row).MergeCells Then
+            Set titleRow = newWs.Range("A" & row & ":Q" & row)
+            With titleRow
+                .Font.Bold = True
+                .Font.Italic = True
+                .Font.Size = 14
+                .RowHeight = 25
+                .Interior.ColorIndex = xlNone
+            End With
+        End If
+    Next row
+' Special formatting for summary rows (rows with formulas)
+    For row = 2 To lastRow
+        Set cell = newWs.Range("H" & row)
+        If Left(cell.Formula, 1) = "=" Then
+            With newWs.Range("A" & row & ":Q" & row)
+                .Font.Bold = True
+                .Interior.ColorIndex = xlNone
+            End With
+        End If
+    Next row
     
+    ' Autofit columns
     newWs.Columns("A:Q").AutoFit
     newWs.Activate
     
@@ -246,8 +307,237 @@ Sub CreateNewSortedSheet()
     ThisWorkbook.Sheets("Category Analysis").Delete
     Application.DisplayAlerts = True
     On Error GoTo 0
+    
+    ' Now move the Other section
+    MoveOtherSectionInNewSheet newWs
 End Sub
 
+Sub MoveOtherSectionInNewSheet(ws As Worksheet)
+    ' Create collection to store sections
+    Dim sections As Collection
+    Set sections = New Collection
+    
+    ' Variables for tracking current section
+    Dim sectionName As String
+    Dim sectionStart As Long
+    Dim sectionEnd As Long
+    Dim i As Long
+    Dim isInSection As Boolean
+    isInSection = False
+    
+    ' Find the last row in the worksheet
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).row
+    
+    ' Process each row to identify sections
+    For i = 1 To lastRow
+        ' Check if this is a section header (empty column A, value in B, empty in C)
+        If isEmpty(ws.Cells(i, 1)) And Not isEmpty(ws.Cells(i, 2)) And isEmpty(ws.Cells(i, 3)) Then
+            ' If we were tracking a section, add it to our collection
+            If isInSection Then
+                ' Store section info as concatenated string: "name|startRow|endRow"
+                sections.Add sectionName & "|" & sectionStart & "|" & (i - 1)
+            End If
+            
+            ' Start new section
+            sectionName = ws.Cells(i, 2).Value
+            sectionStart = i + 1
+            isInSection = True
+        End If
+    Next i
+    
+    ' Add the last section if we were tracking one
+    If isInSection Then
+        sections.Add sectionName & "|" & sectionStart & "|" & lastRow
+    End If
+    
+    ' Find "Other" section
+    Dim otherStartRow As Long
+    Dim otherEndRow As Long
+    Dim sectionInfo As Variant
+    Dim sectionParts() As String
+    
+    otherStartRow = 0
+    otherEndRow = 0
+    
+    For i = 1 To sections.Count
+        sectionInfo = sections(i)
+        sectionParts = Split(sectionInfo, "|")
+        
+        If InStr(1, sectionParts(0), "Other", vbTextCompare) > 0 Then
+            otherStartRow = CLng(sectionParts(1)) - 1  ' Include header row
+            otherEndRow = CLng(sectionParts(2))
+            Exit For
+        End If
+    Next i
+    
+    ' If we found the Other section, move it
+    If otherStartRow > 0 Then
+        ' Copy the Other section including headers
+        Dim otherRange As Range
+        Set otherRange = ws.Range("A" & otherStartRow & ":Q" & otherEndRow)
+        
+        ' Store the data in an array
+        Dim otherData As Variant
+        otherData = otherRange.Value
+        
+        ' Clear the original range
+        otherRange.Clear
+        
+        ' Find the new bottom of the worksheet
+        Dim newLastRow As Long
+        newLastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).row + 2  ' Add 2 for extra blank row
+        
+        ' Paste the Other section at the bottom
+        ws.Range("A" & newLastRow).Resize(UBound(otherData, 1), UBound(otherData, 2)) = otherData
+        
+        ' Delete blank rows in the original range
+        Dim rng As Range
+        Dim cell As Range
+        Dim isRowEmpty As Boolean
+        
+        For i = otherEndRow To otherStartRow Step -1
+            Set rng = ws.Range("A" & i & ":Q" & i)
+            isRowEmpty = True
+            
+            ' Check if row is empty
+            For Each cell In rng
+                If Not isEmpty(cell) Then
+                    isRowEmpty = False
+                    Exit For
+                End If
+            Next cell
+            
+            ' Delete if empty
+            If isRowEmpty Then
+                rng.EntireRow.Delete
+            End If
+        Next i
+        
+        ' Apply borders only to rows with content in the moved section
+        For i = newLastRow To newLastRow + UBound(otherData, 1) - 1
+            rowHasContent = False
+            Set rng = ws.Range("A" & i & ":Q" & i)
+            
+            ' Check if row has any content
+            For Each cell In rng
+                If Not isEmpty(cell) Then
+                    rowHasContent = True
+                    Exit For
+                End If
+            Next cell
+            
+            ' Apply borders if row has content
+            If rowHasContent Then
+                With rng
+                    .Borders(xlEdgeLeft).LineStyle = xlContinuous
+                    .Borders(xlEdgeRight).LineStyle = xlContinuous
+                    .Borders(xlEdgeTop).LineStyle = xlContinuous
+                    .Borders(xlEdgeBottom).LineStyle = xlContinuous
+                    .Borders(xlInsideVertical).LineStyle = xlContinuous
+                End With
+            End If
+        Next i
+        
+        ' Ensure proper text color in moved section
+        ws.Range("A" & newLastRow & ":Q" & (newLastRow + UBound(otherData, 1) - 1)).Font.Color = vbBlack
+    End If
+    
+    ' Final formatting cleanup
+    ws.Activate
+    ws.Columns("A:Q").AutoFit
+    
 
+End Sub
 
+Sub ApplyStyleToTextRows(ws As Worksheet)
+    Dim lastRow As Long, mergedLastRow As Long
+    Dim rng As Range, usedRange As Range
+    Dim row As Long, i As Long
+    Dim cell As Range
+    Dim rowHasContent As Boolean
+    Dim contentDescription As String
+    Dim rowsWithContent() As String
+    Dim contentIndex As Long
+
+    ' Initialize index for rows with content
+    contentIndex = 0
+
+    ' Get the used range and find its last row
+    Set usedRange = ws.usedRange
+    lastRow = usedRange.Rows(usedRange.Rows.Count).row
+    Debug.Print "Used range last row: " & lastRow
+    
+    ' Also check special last row method
+    Dim specialLastRow As Long
+    specialLastRow = ws.Cells.SpecialCells(xlCellTypeLastCell).row
+    Debug.Print "Special last cell row: " & specialLastRow
+    
+    ' Check for last merged B:C cell
+    mergedLastRow = 1
+    For i = 1 To ws.usedRange.Rows.Count
+        If ws.Range("B" & i & ":C" & i).MergeCells Then
+            mergedLastRow = i
+            Debug.Print "Found merged cells B:C in row " & i
+        End If
+    Next i
+    Debug.Print "Last row with merged B:C cells: " & mergedLastRow
+    
+    ' Use the largest of all methods
+    If specialLastRow > lastRow Then lastRow = specialLastRow
+    If mergedLastRow > lastRow Then lastRow = mergedLastRow
+    
+    Debug.Print String(50, "-")
+    Debug.Print "ROW CONTENT ANALYSIS:"
+    Debug.Print String(50, "-")
+    
+    ' Loop through each row
+    For row = 1 To lastRow
+        rowHasContent = False
+        contentDescription = ""
+        Set rng = ws.Range("A" & row & ":R" & row)
+        
+        ' First check if it's a merged cell row
+        If ws.Range("B" & row & ":C" & row).MergeCells Then
+            rowHasContent = True
+            contentDescription = "Merged B:C cells, value: [" & ws.Range("B" & row).Text & "]"
+        End If
+        
+        ' Check each cell for content
+        For Each cell In rng
+            If Not isEmpty(cell) And Trim(CStr(cell.Text)) <> "" Then
+                rowHasContent = True
+                If contentDescription = "" Then
+                    contentDescription = "Text in column " & Split(cell.Address, "$")(1) & ": [" & cell.Text & "]"
+                End If
+            End If
+        Next cell
+        
+        ' Collect findings for rows with content
+        If rowHasContent Then
+            contentIndex = contentIndex + 1
+            ReDim Preserve rowsWithContent(1 To contentIndex)
+            rowsWithContent(contentIndex) = "Row " & Format(row, "000") & ": " & contentDescription
+            
+            ' Apply border styling
+            With rng
+                .Borders(xlEdgeLeft).LineStyle = xlContinuous
+                .Borders(xlEdgeRight).LineStyle = xlContinuous
+                .Borders(xlEdgeTop).LineStyle = xlContinuous
+                .Borders(xlEdgeBottom).LineStyle = xlContinuous
+                .Borders(xlInsideVertical).LineStyle = xlContinuous
+            End With
+        End If
+    Next row
+
+    ' Print only rows with content
+    Debug.Print String(50, "-")
+    Debug.Print "Rows with text content:"
+    For i = LBound(rowsWithContent) To UBound(rowsWithContent)
+        Debug.Print rowsWithContent(i)
+    Next i
+    Debug.Print String(50, "-")
+    Debug.Print "Analysis complete. Last row processed: " & lastRow
+    Debug.Print String(50, "-")
+End Sub
 
