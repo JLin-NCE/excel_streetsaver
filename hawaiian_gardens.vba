@@ -438,40 +438,82 @@ Next i
         End If
     Next i
     
-    ' If we found the Other section, move it
-    If otherStartRow > 0 Then
-        ' Copy the Other section including headers
-        Set rng = newWs.Range("A" & otherStartRow & ":Q" & otherEndRow)
-        
-        ' Store the data in an array
-        Dim otherData As Variant
-        otherData = rng.Value
-        
-        ' Clear the original range
-        rng.Clear
-        
-        ' Find the new bottom of the worksheet
-        Dim newLastRow As Long
-        newLastRow = newWs.Cells(newWs.Rows.Count, "A").End(xlUp).row + 2  ' Add 2 for extra blank row
-        
-        ' Paste the Other section at the bottom
-        newWs.Range("A" & newLastRow).Resize(UBound(otherData, 1), UBound(otherData, 2)) = otherData
-        
-        ' Round columns O, P, Q in the moved Other section
-With newWs.Range("O" & newLastRow & ":O" & (newLastRow + UBound(otherData, 1) - 1))
-    .Value = .Value
-    .NumberFormat = "0"
-End With
+' If we found the Other section, move it
+If otherStartRow > 0 Then
+    ' Copy the Other section including headers
+    Set rng = newWs.Range("A" & otherStartRow & ":Q" & otherEndRow)
+    
+    ' Store the formulas and values in an array
+    Dim otherData() As Variant
+    ReDim otherData(1 To rng.Rows.Count, 1 To rng.Columns.Count)
+    
+    ' Get the summary row position (it's the last row before any empty rows at the end)
+    Dim summaryRow As Long
+    For i = rng.Rows.Count To 1 Step -1
+        If Not IsEmpty(rng.Cells(i, 8)) Then
+            summaryRow = i
+            Exit For
+        End If
+    Next i
+    
+    ' Store both values and formulas
+    For i = 1 To rng.Rows.Count
+        For j = 1 To rng.Columns.Count
+            If i = summaryRow Then
+                ' For summary row, store the formula structure but don't store actual cell references
+                If j = 8 Then  ' Length column
+                    otherData(i, j) = "SummaryLength"  ' Placeholder for length formula
+                ElseIf j = 10 Then  ' Area column
+                    otherData(i, j) = "SummaryArea"    ' Placeholder for area formula
+                Else
+                    otherData(i, j) = rng.Cells(i, j).Value
+                End If
+            Else
+                otherData(i, j) = rng.Cells(i, j).Value
+            End If
+        Next j
+    Next i
+    
+    ' Clear the original range
+    rng.Clear
+    
+    ' Find the new bottom of the worksheet
+    Dim newLastRow As Long
+    newLastRow = newWs.Cells(newWs.Rows.Count, "A").End(xlUp).row + 2  ' Add 2 for extra blank row
+    
+    ' Calculate the start row for the Other section data (excluding header)
+    Dim newDataStartRow As Long
+    newDataStartRow = newLastRow + 1
+    
+    ' Paste the Other section at the bottom
+    For i = 1 To UBound(otherData, 1)
+        For j = 1 To UBound(otherData, 2)
+            If otherData(i, j) = "SummaryLength" Then
+                ' Recreate length formula with new row references
+                newWs.Cells(newLastRow + i - 1, j).Formula = _
+                    "=TEXT(ROUND(SUM(H" & newDataStartRow & ":H" & (newLastRow + summaryRow - 2) & ")/5280,1),""0.0"")"
+            ElseIf otherData(i, j) = "SummaryArea" Then
+                ' Recreate area formula with new row references
+                newWs.Cells(newLastRow + i - 1, j).Formula = _
+                    "=ROUND(SUM(J" & newDataStartRow & ":J" & (newLastRow + summaryRow - 2) & "),1)"
+            Else
+                newWs.Cells(newLastRow + i - 1, j).Value = otherData(i, j)
+            End If
+        Next j
+    Next i
 
-With newWs.Range("P" & newLastRow & ":P" & (newLastRow + UBound(otherData, 1) - 1))
-    .Value = .Value
-    .NumberFormat = "0"
-End With
+    ' Round columns O, P, Q in the moved Other section
+    With newWs.Range("O" & newLastRow & ":O" & (newLastRow + UBound(otherData, 1) - 1))
+        .NumberFormat = "0"
+    End With
 
-With newWs.Range("Q" & newLastRow & ":Q" & (newLastRow + UBound(otherData, 1) - 1))
-    .Value = .Value
-    .NumberFormat = "0"
-End With
+    With newWs.Range("P" & newLastRow & ":P" & (newLastRow + UBound(otherData, 1) - 1))
+        .NumberFormat = "0"
+    End With
+
+    With newWs.Range("Q" & newLastRow & ":Q" & (newLastRow + UBound(otherData, 1) - 1))
+        .NumberFormat = "0"
+    End With
 
         ' Delete blank rows in the original range
         For i = otherEndRow To otherStartRow Step -1
